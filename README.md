@@ -1,2 +1,3 @@
-# nesgo
-A Nes Emulator implemented in Golang
+# NES-GO
+
+Another NES Emulator implemented in Golang
