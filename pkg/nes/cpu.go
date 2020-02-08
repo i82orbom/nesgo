@@ -30,27 +30,20 @@ type CPU struct {
 	cyclesCounter   int
 }
 
-type InstructionSet []Instruction
-
-type Instruction struct {
-	name         string
-	operate      func() uint8
-	address_mode AddressingFunction
-	cycles       uint8
-}
-
-type AddressingFunction struct {
-	fn   func() uint8
-	Type string
-}
-
 func NewCPU() *CPU {
 	cpu := &CPU{}
-	cpu.Lookup = []Instruction{}
-
+	cpu.Lookup = createLookupTable(cpu)
 	return cpu
 }
 
 func (c *CPU) ConnectBus(bus *BUS) {
 	c.bus = bus
+}
+
+func (c *CPU) Read(address uint16) uint8 {
+	return c.bus.CPURead(address, false)
+}
+
+func (c *CPU) Write(address uint16, data uint8) {
+	c.bus.CPUWrite(address, data)
 }

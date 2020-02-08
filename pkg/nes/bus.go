@@ -17,3 +17,11 @@ func NewBUS() *BUS {
 
 	return bus
 }
+
+func (b *BUS) CPURead(address uint16, readOnly bool) uint8 {
+	return 0x0
+}
+
+func (b *BUS) CPUWrite(address uint16, data uint8) {
+
+}
