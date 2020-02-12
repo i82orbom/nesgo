@@ -13,7 +13,7 @@ func Test_CPU(t *testing.T) {
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
-	nes := NewBUS()
+	nes := NewConsole()
 	nes.InsertCartridge(cartridge)
 	nes.Reset()
 	nes.cpu.pc = 0x00C0

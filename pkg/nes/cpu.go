@@ -14,7 +14,7 @@ const (
 )
 
 type CPU struct {
-	bus             *BUS
+	bus             *Console
 	a               uint8
 	x               uint8
 	y               uint8
@@ -36,7 +36,7 @@ func NewCPU() *CPU {
 	return cpu
 }
 
-func (c *CPU) ConnectBus(bus *BUS) {
+func (c *CPU) ConnectBus(bus *Console) {
 	c.bus = bus
 }
 
