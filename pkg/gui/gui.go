@@ -2,8 +2,6 @@ package gui
 
 import (
 	"image"
-
-	"github.com/go-gl/glfw/v3.1/glfw"
 )
 
 // GameWindow represents a window with a canvas and provides a KeyCallback
@@ -12,12 +10,13 @@ type GameWindow interface {
 	SetKeyCallback(fn KeyCallback)
 	Destroy()
 	ShouldClose() bool
+	SetTextureID(id int)
 }
 
 // KeyCallback represents a keycallback function
-type KeyCallback func(key glfw.Key, action glfw.Action)
+type KeyCallback func(key int, isPress bool)
 
 // TextureProvider represents the interface to the outer gui world to set a texture in the gl context
 type TextureProvider interface {
-	Texture() *image.RGBA
+	Texture(idx int) *image.RGBA
 }

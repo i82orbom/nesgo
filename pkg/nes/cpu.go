@@ -45,10 +45,10 @@ func (c *CPU) ConnectBus(bus *Console) {
 
 // Read reads a value in an address
 func (c *CPU) Read(address uint16) uint8 {
-	return c.bus.CPURead(address, false)
+	return c.bus.cpuRead(address, false)
 }
 
 // Write writes a value in the specified address
 func (c *CPU) Write(address uint16, data uint8) {
-	c.bus.CPUWrite(address, data)
+	c.bus.cpuWrite(address, data)
 }

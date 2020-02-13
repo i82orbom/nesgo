@@ -2,10 +2,12 @@ package nes
 
 import (
 	"image"
+	"os"
 
 	"github.com/i82orbom/nesgo/pkg/gui"
 )
 
+// Console represents the NES
 type Console struct {
 	// Console RAM
 	ram [2048]uint8
@@ -19,6 +21,7 @@ type Console struct {
 	cart *Cartridge
 }
 
+// NewConsole creates an instance of a NES
 func NewConsole() *Console {
 	cpu := NewCPU()
 	ppu := NewPPU()
@@ -35,15 +38,18 @@ func NewConsole() *Console {
 	return bus
 }
 
+// InsertCartridge connects the cartridge to the console
 func (b *Console) InsertCartridge(c *Cartridge) {
 	b.cart = c
 	b.ppu.InsertCartridge(c)
 }
 
+// Reset resets the console
 func (b *Console) Reset() {
 	b.cpu.Reset()
 }
 
+// Step steps the console
 func (b *Console) Step() {
 	for {
 		b.cpu.Step()
@@ -54,7 +60,12 @@ func (b *Console) Step() {
 	}
 }
 
-func (b *Console) CPURead(address uint16, readOnly bool) uint8 {
+// Disassemble shows the currently executed code
+func (b *Console) Disassemble() {
+	b.cpu.DissasembleCurrentPC(os.Stdout)
+}
+
+func (b *Console) cpuRead(address uint16, readOnly bool) uint8 {
 	data := uint8(0x00)
 	// The cartridge can veto reads to other devices
 	if b.cart.CPURead(address, &data) {
@@ -69,7 +80,7 @@ func (b *Console) CPURead(address uint16, readOnly bool) uint8 {
 	return data
 }
 
-func (b *Console) CPUWrite(address uint16, data uint8) {
+func (b *Console) cpuWrite(address uint16, data uint8) {
 	// The cartridge can veto writes to other devices
 	if b.cart.CPUWrite(address, data) {
 		return
@@ -80,6 +91,7 @@ func (b *Console) CPUWrite(address uint16, data uint8) {
 	}
 }
 
+// TextureProvider returns the texture provider, in this case the PPU
 func (b *Console) TextureProvider() gui.TextureProvider {
 	return b.ppu
 }

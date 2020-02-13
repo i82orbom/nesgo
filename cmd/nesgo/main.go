@@ -7,6 +7,7 @@ import (
 
 	"github.com/i82orbom/nesgo/pkg/gui/glfw"
 	"github.com/i82orbom/nesgo/pkg/nes"
+	"github.com/i82orbom/nesgo/pkg/nesgo"
 )
 
 func main() {
@@ -30,8 +31,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not create gamewindow")
 	}
+	emulator := nesgo.NewEmulator(window, console)
+	window.SetKeyCallback(emulator.KeyCallback)
+
 	defer window.Destroy()
 	for !window.ShouldClose() {
+		emulator.Step()
 		window.Draw()
 	}
 }

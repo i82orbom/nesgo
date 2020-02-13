@@ -1,6 +1,8 @@
 package glfw
 
 import (
+	"runtime"
+
 	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/glfw/v3.1/glfw"
 	"github.com/i82orbom/nesgo/pkg/gui"
@@ -14,12 +16,15 @@ const (
 
 type window struct {
 	*glfw.Window
-	texture         *gameTexture
-	textureProvider gui.TextureProvider
+	texture          *gameTexture
+	textureProvider  gui.TextureProvider
+	currentTextureID int
 }
 
 // NewGameWindow creates a new gamewindow
 func NewGameWindow(textureProvider gui.TextureProvider) (gui.GameWindow, error) {
+	runtime.LockOSThread()
+
 	if err := glfw.Init(); err != nil {
 		return nil, err
 	}
@@ -36,13 +41,19 @@ func NewGameWindow(textureProvider gui.TextureProvider) (gui.GameWindow, error) 
 	w.Window = glfwWindow
 	w.texture = newGameTexture(w)
 	w.textureProvider = textureProvider
+	w.currentTextureID = 0
 	return w, nil
+}
+
+// SetTextureID allows to cycle the textures if the texture provider allows it
+func (w *window) SetTextureID(id int) {
+	w.currentTextureID = id
 }
 
 func (w *window) Draw() {
 	glfw.PollEvents()
 
-	currentTexture := w.textureProvider.Texture()
+	currentTexture := w.textureProvider.Texture(w.currentTextureID)
 	w.texture.SetTexture(currentTexture)
 
 	width, height := w.getFrameBufferSizeF32()
@@ -77,7 +88,7 @@ func (w *window) getFrameBufferSizeF32() (float32, float32) {
 
 func (w *window) SetKeyCallback(fnCallback gui.KeyCallback) {
 	w.Window.SetKeyCallback(func(window *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-		fnCallback(key, action)
+		fnCallback(int(key), action == glfw.Press)
 	})
 }
 
