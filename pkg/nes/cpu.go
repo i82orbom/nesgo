@@ -26,24 +26,28 @@ type CPU struct {
 	stackPointer    uint8
 	addressAbsolute uint16
 	addressRelative uint16
-	Lookup          InstructionSet
+	Lookup          instructionSet
 	cyclesCounter   int
 }
 
+// NewCPU creates a new NES cpu
 func NewCPU() *CPU {
 	cpu := &CPU{}
 	cpu.Lookup = createLookupTable(cpu)
 	return cpu
 }
 
+// ConnectBus attaches the console bus to the cpu
 func (c *CPU) ConnectBus(bus *Console) {
 	c.bus = bus
 }
 
+// Read reads a value in an address
 func (c *CPU) Read(address uint16) uint8 {
 	return c.bus.CPURead(address, false)
 }
 
+// Write writes a value in the specified address
 func (c *CPU) Write(address uint16, data uint8) {
 	c.bus.CPUWrite(address, data)
 }
