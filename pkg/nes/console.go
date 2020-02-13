@@ -2,7 +2,8 @@ package nes
 
 import (
 	"image"
-	"image/color"
+
+	"github.com/i82orbom/nesgo/pkg/gui"
 )
 
 type Console struct {
@@ -14,13 +15,17 @@ type Console struct {
 
 	// Devices connected to the Console
 	cpu  *CPU
+	ppu  *PPU
 	cart *Cartridge
 }
 
 func NewConsole() *Console {
 	cpu := NewCPU()
+	ppu := NewPPU()
+
 	bus := &Console{
 		cpu:     cpu,
+		ppu:     ppu,
 		texture: image.NewRGBA(image.Rect(0, 0, 256, 240)),
 	}
 
@@ -32,6 +37,7 @@ func NewConsole() *Console {
 
 func (b *Console) InsertCartridge(c *Cartridge) {
 	b.cart = c
+	b.ppu.InsertCartridge(c)
 }
 
 func (b *Console) Reset() {
@@ -74,31 +80,6 @@ func (b *Console) CPUWrite(address uint16, data uint8) {
 	}
 }
 
-func (b *Console) Texture() *image.RGBA {
-	c1 := color.RGBA{
-		A: 255,
-		B: 255,
-		G: 255,
-		R: 255,
-	}
-	c2 := color.RGBA{
-		A: 0,
-		B: 0,
-		G: 0,
-		R: 255,
-	}
-	latch := true
-	for x := 0; x < 256; x++ {
-		for y := 0; y < 240; y++ {
-			if latch {
-				b.texture.SetRGBA(x, y, c1)
-				latch = !latch
-			} else {
-				b.texture.SetRGBA(x, y, c2)
-				latch = !latch
-			}
-		}
-	}
-
-	return b.texture
+func (b *Console) TextureProvider() gui.TextureProvider {
+	return b.ppu
 }

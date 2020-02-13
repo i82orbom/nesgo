@@ -26,7 +26,7 @@ func main() {
 	console := nes.NewConsole()
 	console.InsertCartridge(cart)
 
-	window, err := glfw.NewGameWindow(console)
+	window, err := glfw.NewGameWindow(console.TextureProvider())
 	if err != nil {
 		log.Fatalf("Could not create gamewindow")
 	}
