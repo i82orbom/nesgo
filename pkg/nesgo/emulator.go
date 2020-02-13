@@ -2,6 +2,7 @@ package nesgo
 
 import (
 	"fmt"
+
 	"github.com/go-gl/glfw/v3.1/glfw"
 	"github.com/i82orbom/nesgo/pkg/gui"
 	"github.com/i82orbom/nesgo/pkg/nes"
@@ -10,20 +11,20 @@ import (
 // Emulator represents a NES emulator handles the user input
 type Emulator struct {
 	console *nes.Console
-	window gui.GameWindow
+	window  gui.GameWindow
 
 	// Status
 	emulationEnabled bool
-	disassemble bool
-	currentTexture int
+	disassemble      bool
+	currentTexture   int
 }
 
 func NewEmulator(window gui.GameWindow, console *nes.Console) *Emulator {
 	return &Emulator{
-		window: window,
-		console: console,
+		window:           window,
+		console:          console,
 		emulationEnabled: false,
-		currentTexture: 0,
+		currentTexture:   0,
 	}
 }
 
@@ -34,7 +35,7 @@ func (e *Emulator) KeyCallback(key int, isPress bool) {
 	// Currently the keys are harcoded
 	switch glfw.Key(key) {
 	case glfw.KeySpace:
-		e.step()
+		e.stepFrame()
 		if e.disassemble {
 			e.console.Disassemble()
 		}
@@ -43,7 +44,7 @@ func (e *Emulator) KeyCallback(key int, isPress bool) {
 		fmt.Printf("Emulation enabled: %v\n", e.emulationEnabled)
 	case glfw.KeyL:
 		e.disassemble = !e.disassemble
-		fmt.Printf("Dissasemble enabled: %v\n",e.disassemble)
+		fmt.Printf("Dissasemble enabled: %v\n", e.disassemble)
 	case glfw.KeyP:
 		e.currentTexture++
 		e.currentTexture %= 3
@@ -56,12 +57,12 @@ func (e *Emulator) Step() {
 	if !e.emulationEnabled {
 		return
 	}
-	e.step()
+	e.stepFrame()
 	if e.disassemble {
 		e.console.Disassemble()
 	}
 }
 
-func (e *Emulator) step() {
-	e.console.Step()
+func (e *Emulator) stepFrame() {
+	e.console.StepFrame()
 }

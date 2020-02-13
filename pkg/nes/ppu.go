@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 
+	"github.com/i82orbom/nesgo/pkg/nes/register"
 	"github.com/labstack/gommon/log"
 )
 
@@ -15,6 +16,22 @@ const (
 // PPU represents the Picture Processing Unit of the NES
 type PPU struct {
 	cart *Cartridge
+
+	// Rendering flags
+	cycle         int
+	scanline      int
+	frameComplete bool
+
+	// Registers and data structures
+	controlRegister *register.ControlRegister
+	maskRegister    *register.MaskRegister
+	statusRegister  *register.StatusRegister
+
+	addressLatch  uint8
+	ppuDataBuffer uint8
+	fineX         uint8
+	vramAddress   *register.VRAMRegister
+	tramAddress   *register.VRAMRegister
 
 	renderedTexture            *image.RGBA
 	spritePatternTableTextures [2]*image.RGBA
@@ -31,11 +48,10 @@ type PPU struct {
 // NewPPU creates a new Picture Processing Unit instance
 func NewPPU() *PPU {
 	ppu := &PPU{}
-	ppu.initialise()
 	return ppu
 }
 
-func (ppu *PPU) initialise() {
+func (ppu *PPU) reset() {
 	// Init texture
 	ppu.renderedTexture = image.NewRGBA(image.Rect(0, 0, height, width))
 	ppu.spritePatternTableTextures = [2]*image.RGBA{
@@ -44,19 +60,111 @@ func (ppu *PPU) initialise() {
 	}
 	// Color palette
 	ppu.colorPalette = colorPalette()
+
+	// Registers
+	ppu.controlRegister = &register.ControlRegister{}
+	ppu.maskRegister = &register.MaskRegister{}
+	ppu.statusRegister = &register.StatusRegister{}
+	ppu.controlRegister.Set(0x00)
+	ppu.maskRegister.Set(0x00)
+	ppu.statusRegister.Set(0x00)
+
+	ppu.addressLatch = 0x0
+	ppu.ppuDataBuffer = 0x0
+	ppu.vramAddress = &register.VRAMRegister{}
+	ppu.tramAddress = &register.VRAMRegister{}
+	ppu.vramAddress.Set(0x0000)
+	ppu.tramAddress.Set(0x0000)
 }
 
 // CPURead reads a value triggered by the CPU
 func (ppu *PPU) CPURead(address uint16, readOnly bool) uint8 {
-	return 0
+	if readOnly {
+		switch address {
+		case 0x0000: // Control
+			return ppu.controlRegister.Value()
+		case 0x0001: // Mask
+			return ppu.maskRegister.Value()
+		case 0x0002: // Status
+			return ppu.statusRegister.Value()
+		}
+		// The rest is not readable
+		return 0
+	}
+
+	data := uint8(0)
+
+	switch address {
+	case 0x0000: // Control - not readable
+	case 0x0001: // Mask - not readable
+	case 0x0002: // Status
+		data = (ppu.statusRegister.Value() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
+		ppu.statusRegister.VerticalBlank = 0
+		ppu.addressLatch = 0
+	case 0x0003: // OAM Address - not readable
+	case 0x0004: // OAM Data
+	case 0x0005: // Scroll
+	case 0x0006: // PPU Address - not readable
+	case 0x0007: // PPU Data
+		data = ppu.ppuDataBuffer
+		ppu.ppuDataBuffer = ppu.PPURead(ppu.vramAddress.Value(), false)
+
+		if ppu.vramAddress.Value() >= 0x3F00 {
+			data = ppu.ppuDataBuffer
+		}
+
+		if ppu.controlRegister.IncrementMode != 0 {
+			ppu.vramAddress.Increment(32)
+		} else {
+			ppu.vramAddress.Increment(1)
+		}
+	}
+
+	return data
 }
 
 // CPUWrite writes a value triggered by the CPU
 func (ppu *PPU) CPUWrite(address uint16, data uint8) {
-
+	switch address {
+	case 0x0000: // Control
+		ppu.controlRegister.Set(data)
+		ppu.tramAddress.NameTableX = uint16(ppu.controlRegister.NameTableX)
+		ppu.tramAddress.NameTableY = uint16(ppu.controlRegister.NameTableY)
+	case 0x0001: // Mask
+		ppu.maskRegister.Set(data)
+	case 0x0002: // Status - not writable
+	case 0x0003: // OAM Address
+	case 0x0004: // OAM Data
+	case 0x0005: // Scroll
+		if ppu.addressLatch == 0 {
+			ppu.fineX = data & 0x07
+			ppu.tramAddress.CoarseX = uint16(data) >> 3
+			ppu.addressLatch = 1
+		} else {
+			ppu.tramAddress.FineY = uint16(data & 0x07)
+			ppu.tramAddress.CoarseY = uint16(data) >> 3
+			ppu.addressLatch = 0
+		}
+	case 0x0006: // PPU Address
+		if ppu.addressLatch == 0 {
+			ppu.tramAddress.Set((uint16(data&0x3F) << 8) | ppu.tramAddress.Value()&0x00FF)
+			ppu.addressLatch = 1
+		} else {
+			ppu.tramAddress.Set(ppu.tramAddress.Value()&0xFF00 | uint16(data))
+			ppu.vramAddress.Copy(ppu.tramAddress)
+			ppu.addressLatch = 0
+		}
+	case 0x0007: // PPU Data
+		ppu.PPUWrite(ppu.vramAddress.Value(), data)
+		if ppu.controlRegister.IncrementMode != 0 {
+			ppu.vramAddress.Increment(32)
+		} else {
+			ppu.vramAddress.Increment(1)
+		}
+	}
 }
 
-// PPURead reads a value trigger by the PPU (CHR data)
+// PPURead reads a value triggered by the PPU (CHR data)
 func (ppu *PPU) PPURead(address uint16, readOnly bool) uint8 {
 	data := uint8(0x0)
 	address &= 0x3FFF // Guard address
@@ -107,7 +215,7 @@ func (ppu *PPU) PPURead(address uint16, readOnly bool) uint8 {
 	return data
 }
 
-// PPUWrite reads a value trigger by the PPU (CHR data)
+// PPUWrite reads a value triggered by the PPU (CHR data)
 func (ppu *PPU) PPUWrite(address uint16, data uint8) {
 	address &= 0x3FFF // Guard address
 
@@ -151,7 +259,11 @@ func (ppu *PPU) PPUWrite(address uint16, data uint8) {
 			address = 0x000C
 		}
 
-		ppu.tablePalette[address] = data
+		if ppu.maskRegister.Grayscale == 1 {
+			data = ppu.tablePalette[address] & 0x30
+		} else {
+			data = ppu.tablePalette[address] & 0x3F
+		}
 	}
 }
 
@@ -167,46 +279,13 @@ func (ppu *PPU) Texture(idx int) *image.RGBA {
 	case 0:
 		return ppu.renderedTexture
 	case 1:
-		return ppu.spritePatternTableTextures[0]
+		// Refresh pattern table
+		return ppu.patternTable(0, 0)
 	case 2:
-		return ppu.spritePatternTableTextures[1]
+		// Refresh pattern table
+		return ppu.patternTable(1, 0)
 	default:
 		log.Infof("Invalid texture index selected: %v, defaulting to 0", idx)
 		return ppu.renderedTexture
 	}
-}
-
-func (ppu *PPU) patternTable(idx uint8, paletteID uint8) *image.RGBA {
-	for yTile := uint16(0); yTile < 16; yTile++ {
-		for xTile := uint16(0); xTile < 16; xTile++ {
-			offset := (yTile * 256) + (xTile * 16)
-
-			for row := uint16(0); row < 8; row++ {
-				tileLSB := ppu.PPURead(uint16(idx)*0x1000+offset+row+0, false)
-				tileMSB := ppu.PPURead(uint16(idx)*0x1000+offset+row+8, false)
-
-				for col := uint16(0); col < 8; col++ {
-					pixel := (tileLSB & 0x01) | (tileMSB&0x01)<<1
-					tileLSB >>= 1
-					tileMSB >>= 1
-
-					x := (xTile * 8) + (7 - col)
-					y := (yTile * 8) + row
-					color := ppu.getColorFromPalette(paletteID, pixel)
-					ppu.spritePatternTableTextures[idx].Set(
-						int(x),
-						int(y),
-						*color,
-					)
-				}
-			}
-		}
-	}
-	return ppu.spritePatternTableTextures[idx]
-}
-
-func (ppu *PPU) getColorFromPalette(paletteID uint8, pixel uint8) *color.RGBA {
-	address := uint16(0x3F00) + uint16(paletteID)<<2 + uint16(pixel)
-	index := ppu.PPURead(address, false)
-	return &ppu.colorPalette[index&0x3F]
 }

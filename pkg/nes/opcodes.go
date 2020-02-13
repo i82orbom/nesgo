@@ -738,7 +738,7 @@ func (c *CPU) Step() {
 }
 
 // Reset resets the CPU to the initial state
-func (c *CPU) Reset() { // Reset signal
+func (c *CPU) reset() { // Reset signal
 
 	c.addressAbsolute = 0xFFFC
 	lo := uint16(c.Read(c.addressAbsolute + 0))

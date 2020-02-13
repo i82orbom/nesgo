@@ -26,6 +26,7 @@ func main() {
 
 	console := nes.NewConsole()
 	console.InsertCartridge(cart)
+	console.Reset() // Reset signal to start emulating
 
 	window, err := glfw.NewGameWindow(console.TextureProvider())
 	if err != nil {

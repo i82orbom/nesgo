@@ -1,7 +1,6 @@
 package nes
 
 import (
-	"image"
 	"os"
 
 	"github.com/i82orbom/nesgo/pkg/gui"
@@ -12,8 +11,8 @@ type Console struct {
 	// Console RAM
 	ram [2048]uint8
 
-	// Temp texture
-	texture *image.RGBA
+	// Status
+	clockCounter int
 
 	// Devices connected to the Console
 	cpu  *CPU
@@ -27,15 +26,19 @@ func NewConsole() *Console {
 	ppu := NewPPU()
 
 	bus := &Console{
-		cpu:     cpu,
-		ppu:     ppu,
-		texture: image.NewRGBA(image.Rect(0, 0, 256, 240)),
+		cpu: cpu,
+		ppu: ppu,
 	}
 
 	// Connect devices
 	cpu.ConnectBus(bus)
-
 	return bus
+}
+
+// Reset resets the console
+func (b *Console) Reset() {
+	b.cpu.reset()
+	b.ppu.reset()
 }
 
 // InsertCartridge connects the cartridge to the console
@@ -44,17 +47,21 @@ func (b *Console) InsertCartridge(c *Cartridge) {
 	b.ppu.InsertCartridge(c)
 }
 
-// Reset resets the console
-func (b *Console) Reset() {
-	b.cpu.Reset()
+// Step steps the console a single cycle
+func (b *Console) Step() {
+	b.ppu.Step()
+
+	if (b.clockCounter % 3) == 0 {
+		b.cpu.Step()
+	}
 }
 
-// Step steps the console
-func (b *Console) Step() {
+// StepFrame steps the console enough to generate one frame
+func (b *Console) StepFrame() {
 	for {
-		b.cpu.Step()
-		// The CPU will clock until no more cycles need to be executed
-		if b.cpu.Complete() {
+		b.Step()
+		if b.ppu.frameComplete {
+			b.ppu.frameComplete = false
 			break
 		}
 	}
@@ -74,6 +81,8 @@ func (b *Console) cpuRead(address uint16, readOnly bool) uint8 {
 
 	if address >= 0x0000 && address <= 0x1FFF {
 		data = b.ram[address&0x07FF] // Mask for mirroring
+	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
+		data = b.ppu.CPURead(address&0x0007, readOnly)
 	}
 
 	// Read from other devices
@@ -88,6 +97,8 @@ func (b *Console) cpuWrite(address uint16, data uint8) {
 
 	if address >= 0x0000 && address <= 0x1FFF {
 		b.ram[address&0x07FF] = data // Mask for mirroring
+	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
+		b.ppu.CPUWrite(address&0x0007, data)
 	}
 }
 
