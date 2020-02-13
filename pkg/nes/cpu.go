@@ -1,18 +1,19 @@
 package nes
 
-type FLAGS uint8
+type cpuFlag uint8
 
 const (
-	C FLAGS = (1 << 0)
-	Z FLAGS = (1 << 1)
-	I FLAGS = (1 << 2)
-	D FLAGS = (1 << 3)
-	B FLAGS = (1 << 4)
-	U FLAGS = (1 << 5)
-	V FLAGS = (1 << 6)
-	N FLAGS = (1 << 7)
+	flagC cpuFlag = (1 << 0)
+	flagZ cpuFlag = (1 << 1)
+	flagI cpuFlag = (1 << 2)
+	flagD cpuFlag = (1 << 3)
+	flagB cpuFlag = (1 << 4)
+	flagU cpuFlag = (1 << 5)
+	flagV cpuFlag = (1 << 6)
+	flagN cpuFlag = (1 << 7)
 )
 
+// CPU represents the 6502 nes cpu
 type CPU struct {
 	bus             *Console
 	a               uint8

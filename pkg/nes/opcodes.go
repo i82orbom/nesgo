@@ -38,12 +38,12 @@ func createLookupTable(cpu *CPU) []instruction {
 // ADD
 func (c *CPU) adc() uint8 {
 	c.fetch()
-	flagC := c.getFlag(C)
-	temp := uint16(c.a) + uint16(c.fetched) + uint16(flagC)
-	c.setFlag(C, temp > 255)
-	c.setFlag(Z, (temp&0x00FF) == 0)
-	c.setFlagN(N, int(temp&0x80))
-	c.setFlagN(V, int(^(uint16(c.a)^uint16(c.fetched))&(uint16(c.a)^temp))&0x0080)
+	flagCValue := c.getFlag(flagC)
+	temp := uint16(c.a) + uint16(c.fetched) + uint16(flagCValue)
+	c.setFlag(flagC, temp > 255)
+	c.setFlag(flagZ, (temp&0x00FF) == 0)
+	c.setFlagN(flagN, int(temp&0x80))
+	c.setFlagN(flagV, int(^(uint16(c.a)^uint16(c.fetched))&(uint16(c.a)^temp))&0x0080)
 	c.a = uint8(temp & 0x00FF)
 	return 1
 }
@@ -52,8 +52,8 @@ func (c *CPU) adc() uint8 {
 func (c *CPU) and() uint8 {
 	c.fetch()
 	c.a = c.a & c.fetched
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80)) // If bit 7 is 1
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80)) // If bit 7 is 1
 	return 1
 }
 
@@ -61,9 +61,9 @@ func (c *CPU) and() uint8 {
 func (c *CPU) asl() uint8 {
 	c.fetch()
 	temp := uint16(c.fetched) << 1
-	c.setFlag(C, (temp&0xFF00) > 0)
-	c.setFlag(Z, (temp&0x00FF) == 0x00)
-	c.setFlagN(N, int(temp&0x80))
+	c.setFlag(flagC, (temp&0xFF00) > 0)
+	c.setFlag(flagZ, (temp&0x00FF) == 0x00)
+	c.setFlagN(flagN, int(temp&0x80))
 	if c.Lookup[c.opcode].adressingModeFn.Type == "IMP" {
 		c.a = uint8(temp & 0x00FF)
 	} else {
@@ -74,7 +74,7 @@ func (c *CPU) asl() uint8 {
 
 // Branch if carry clear
 func (c *CPU) bcc() uint8 {
-	if c.getFlag(C) == 0 {
+	if c.getFlag(flagC) == 0 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -88,7 +88,7 @@ func (c *CPU) bcc() uint8 {
 
 // Branch if carry status is set
 func (c *CPU) bcs() uint8 {
-	if c.getFlag(C) == 1 {
+	if c.getFlag(flagC) == 1 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -103,7 +103,7 @@ func (c *CPU) bcs() uint8 {
 
 // Branch if equal
 func (c *CPU) beq() uint8 {
-	if c.getFlag(Z) != 0 {
+	if c.getFlag(flagZ) != 0 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -119,15 +119,15 @@ func (c *CPU) beq() uint8 {
 func (c *CPU) bit() uint8 {
 	c.fetch()
 	temp := c.a & c.fetched
-	c.setFlag(Z, (temp&0x00FF) == 0x00)
-	c.setFlagN(N, int(c.fetched&(1<<7)))
-	c.setFlagN(V, int(c.fetched&(1<<6)))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x00)
+	c.setFlagN(flagN, int(c.fetched&(1<<7)))
+	c.setFlagN(flagV, int(c.fetched&(1<<6)))
 	return 0
 }
 
 // Branch if negative
 func (c *CPU) bmi() uint8 {
-	if c.getFlag(N) == 1 {
+	if c.getFlag(flagN) == 1 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -142,7 +142,7 @@ func (c *CPU) bmi() uint8 {
 
 // Branch if not equal
 func (c *CPU) bne() uint8 {
-	if c.getFlag(Z) == 0 {
+	if c.getFlag(flagZ) == 0 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -157,7 +157,7 @@ func (c *CPU) bne() uint8 {
 
 // Branch if positive
 func (c *CPU) bpl() uint8 {
-	if c.getFlag(N) == 0 {
+	if c.getFlag(flagN) == 0 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -173,16 +173,16 @@ func (c *CPU) bpl() uint8 {
 func (c *CPU) brk() uint8 {
 	c.pc++
 
-	c.setFlagN(I, 1)
+	c.setFlagN(flagI, 1)
 	c.Write(0x0100+uint16(c.stackPointer), uint8((c.pc>>8)&0x00FF))
 	c.stackPointer--
 	c.Write(0x0100+uint16(c.stackPointer), uint8(c.pc&0x00FF))
 	c.stackPointer--
 
-	c.setFlagN(B, 1)
+	c.setFlagN(flagB, 1)
 	c.Write(0x0100+uint16(c.stackPointer), c.status)
 	c.stackPointer--
-	c.setFlagN(B, 0)
+	c.setFlagN(flagB, 0)
 
 	c.pc = uint16(c.Read(0xFFFE)) | (uint16(c.Read(0xFFFF)) << 8)
 	return 0
@@ -190,7 +190,7 @@ func (c *CPU) brk() uint8 {
 
 // Branch if overflow
 func (c *CPU) bvc() uint8 {
-	if c.getFlag(V) == 0 {
+	if c.getFlag(flagV) == 0 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -205,7 +205,7 @@ func (c *CPU) bvc() uint8 {
 
 // Branch if not-overflow
 func (c *CPU) bvs() uint8 {
-	if c.getFlag(V) == 1 {
+	if c.getFlag(flagV) == 1 {
 		c.cycles++
 		c.addressAbsolute = c.pc + c.addressRelative
 
@@ -218,22 +218,22 @@ func (c *CPU) bvs() uint8 {
 }
 
 func (c *CPU) clc() uint8 {
-	c.setFlag(C, false)
+	c.setFlag(flagC, false)
 	return 0
 }
 
 func (c *CPU) cld() uint8 {
-	c.setFlag(D, false)
+	c.setFlag(flagD, false)
 	return 0
 }
 
 func (c *CPU) cli() uint8 {
-	c.setFlag(I, false)
+	c.setFlag(flagI, false)
 	return 0
 }
 
 func (c *CPU) clv() uint8 {
-	c.setFlag(V, false)
+	c.setFlag(flagV, false)
 	return 0
 }
 
@@ -241,9 +241,9 @@ func (c *CPU) clv() uint8 {
 func (c *CPU) cmp() uint8 {
 	c.fetch()
 	temp := uint16(c.a) - uint16(c.fetched)
-	c.setFlag(C, c.a >= c.fetched)
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagC, c.a >= c.fetched)
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	return 1
 }
 
@@ -251,9 +251,9 @@ func (c *CPU) cmp() uint8 {
 func (c *CPU) cpx() uint8 {
 	c.fetch()
 	temp := uint16(c.x) - uint16(c.fetched)
-	c.setFlag(C, c.x >= c.fetched)
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagC, c.x >= c.fetched)
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	return 0
 }
 
@@ -261,9 +261,9 @@ func (c *CPU) cpx() uint8 {
 func (c *CPU) cpy() uint8 {
 	c.fetch()
 	temp := uint16(c.y) - uint16(c.fetched)
-	c.setFlag(C, c.y >= c.fetched)
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagC, c.y >= c.fetched)
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	return 0
 
 }
@@ -273,24 +273,24 @@ func (c *CPU) dec() uint8 {
 	c.fetch()
 	temp := uint16(c.fetched) - 1
 	c.Write(c.addressAbsolute, uint8(temp&0x00FF))
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	return 0
 }
 
 // Decrement X
 func (c *CPU) dex() uint8 {
 	c.x--
-	c.setFlag(Z, c.x == 0x00)
-	c.setFlagN(N, int(c.x&0x80))
+	c.setFlag(flagZ, c.x == 0x00)
+	c.setFlagN(flagN, int(c.x&0x80))
 	return 0
 }
 
 // Decrement Y
 func (c *CPU) dey() uint8 {
 	c.y--
-	c.setFlag(Z, c.y == 0x00)
-	c.setFlagN(N, int(c.y&0x80))
+	c.setFlag(flagZ, c.y == 0x00)
+	c.setFlagN(flagN, int(c.y&0x80))
 	return 0
 }
 
@@ -298,8 +298,8 @@ func (c *CPU) dey() uint8 {
 func (c *CPU) eor() uint8 {
 	c.fetch()
 	c.a = c.a ^ c.fetched
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 1
 }
 
@@ -308,22 +308,22 @@ func (c *CPU) inc() uint8 {
 	c.fetch()
 	temp := uint16(c.fetched) + 1
 	c.Write(c.addressAbsolute, uint8(temp&0x00FF))
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	return 0
 }
 
 func (c *CPU) inx() uint8 {
 	c.x++
-	c.setFlag(Z, c.x == 0x0)
-	c.setFlagN(N, int(c.x&0x80))
+	c.setFlag(flagZ, c.x == 0x0)
+	c.setFlagN(flagN, int(c.x&0x80))
 	return 0
 }
 
 func (c *CPU) iny() uint8 {
 	c.y++
-	c.setFlag(Z, c.y == 0x0)
-	c.setFlagN(N, int(c.y&0x80))
+	c.setFlag(flagZ, c.y == 0x0)
+	c.setFlagN(flagN, int(c.y&0x80))
 	return 0
 }
 
@@ -347,33 +347,33 @@ func (c *CPU) jsr() uint8 {
 func (c *CPU) lda() uint8 {
 	c.fetch()
 	c.a = c.fetched
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 1
 }
 
 func (c *CPU) ldx() uint8 {
 	c.fetch()
 	c.x = c.fetched
-	c.setFlag(Z, c.x == 0x00)
-	c.setFlagN(N, int(c.x&0x80))
+	c.setFlag(flagZ, c.x == 0x00)
+	c.setFlagN(flagN, int(c.x&0x80))
 	return 1
 }
 
 func (c *CPU) ldy() uint8 {
 	c.fetch()
 	c.y = c.fetched
-	c.setFlag(Z, c.y == 0x00)
-	c.setFlagN(N, int(c.y&0x80))
+	c.setFlag(flagZ, c.y == 0x00)
+	c.setFlagN(flagN, int(c.y&0x80))
 	return 1
 }
 
 func (c *CPU) lsr() uint8 {
 	c.fetch()
-	c.setFlagN(C, int(c.fetched&0x0001))
+	c.setFlagN(flagC, int(c.fetched&0x0001))
 	temp := uint16(c.fetched) >> 1
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	if c.Lookup[c.opcode].adressingModeFn.Type == "IMP" {
 		c.a = uint8(temp & 0x00FF)
 	} else {
@@ -400,8 +400,8 @@ func (c *CPU) nop() uint8 {
 func (c *CPU) ora() uint8 {
 	c.fetch()
 	c.a = c.a | c.fetched
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 1
 }
 
@@ -414,9 +414,9 @@ func (c *CPU) pha() uint8 {
 
 // Push status register to stack
 func (c *CPU) php() uint8 {
-	c.Write(0x0100+uint16(c.stackPointer), c.status|uint8(B)|uint8(U))
-	c.setFlagN(B, 0)
-	c.setFlagN(U, 0)
+	c.Write(0x0100+uint16(c.stackPointer), c.status|uint8(flagB)|uint8(flagU))
+	c.setFlagN(flagB, 0)
+	c.setFlagN(flagU, 0)
 	c.stackPointer--
 	return 0
 }
@@ -425,8 +425,8 @@ func (c *CPU) php() uint8 {
 func (c *CPU) pla() uint8 {
 	c.stackPointer++
 	c.a = c.Read(0x0100 + uint16(c.stackPointer))
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 0
 }
 
@@ -434,15 +434,16 @@ func (c *CPU) pla() uint8 {
 func (c *CPU) plp() uint8 {
 	c.stackPointer++
 	c.status = c.Read(0x0100 + uint16(c.stackPointer))
-	c.setFlagN(U, 1)
+	c.setFlagN(flagU, 1)
 	return 0
 }
+
 func (c *CPU) rol() uint8 {
 	c.fetch()
-	temp := (uint16(c.fetched) << 1) | uint16(c.getFlag(C))
-	c.setFlagN(C, int(temp&0xFF00))
-	c.setFlag(Z, (temp&0x00FF) == 0x0000)
-	c.setFlagN(N, int(temp&0x0080))
+	temp := (uint16(c.fetched) << 1) | uint16(c.getFlag(flagC))
+	c.setFlagN(flagC, int(temp&0xFF00))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x0000)
+	c.setFlagN(flagN, int(temp&0x0080))
 	if c.Lookup[c.opcode].adressingModeFn.Type == "IMP" {
 		c.a = uint8(temp & 0x00FF)
 	} else {
@@ -453,10 +454,10 @@ func (c *CPU) rol() uint8 {
 
 func (c *CPU) ror() uint8 {
 	c.fetch()
-	temp := (uint16(c.getFlag(C)) << 7) | (uint16(c.fetched) >> 1)
-	c.setFlagN(C, int(c.fetched&0x01))
-	c.setFlag(Z, (temp&0x00FF) == 0x00)
-	c.setFlagN(N, int(temp&0x0080))
+	temp := (uint16(c.getFlag(flagC)) << 7) | (uint16(c.fetched) >> 1)
+	c.setFlagN(flagC, int(c.fetched&0x01))
+	c.setFlag(flagZ, (temp&0x00FF) == 0x00)
+	c.setFlagN(flagN, int(temp&0x0080))
 	if c.Lookup[c.opcode].adressingModeFn.Type == "IMP" {
 		c.a = uint8(temp & 0x00FF)
 	} else {
@@ -468,8 +469,8 @@ func (c *CPU) ror() uint8 {
 func (c *CPU) rti() uint8 {
 	c.stackPointer++
 	c.status = c.Read(0x0100 + uint16(c.stackPointer))
-	c.status &= uint8(^B)
-	c.status &= uint8(^U)
+	c.status &= uint8(^flagB)
+	c.status &= uint8(^flagU)
 
 	c.stackPointer++
 	c.pc = uint16(c.Read(0x0100 + uint16(c.stackPointer)))
@@ -493,27 +494,27 @@ func (c *CPU) sbc() uint8 {
 	c.fetch()
 	value := (uint16(c.fetched)) ^ 0x00FF // Same as ADC but inverting the fetched
 
-	temp := uint16(c.a) + value + uint16(c.getFlag(C))
-	c.setFlagN(C, int(temp&0xFF00))
-	c.setFlag(Z, (temp&0x00FF) == 0)
-	c.setFlagN(V, int((temp^(uint16(c.a)))&(temp^value)&0x0080))
-	c.setFlagN(N, int(temp&0x0080))
+	temp := uint16(c.a) + value + uint16(c.getFlag(flagC))
+	c.setFlagN(flagC, int(temp&0xFF00))
+	c.setFlag(flagZ, (temp&0x00FF) == 0)
+	c.setFlagN(flagV, int((temp^(uint16(c.a)))&(temp^value)&0x0080))
+	c.setFlagN(flagN, int(temp&0x0080))
 	c.a = uint8(temp & 0x00FF)
 	return 1
 }
 
 func (c *CPU) sec() uint8 {
-	c.setFlag(C, true)
+	c.setFlag(flagC, true)
 	return 0
 }
 
 func (c *CPU) sed() uint8 {
-	c.setFlag(D, true)
+	c.setFlag(flagD, true)
 	return 0
 }
 
 func (c *CPU) sei() uint8 {
-	c.setFlag(I, true)
+	c.setFlag(flagI, true)
 	return 0
 }
 
@@ -534,29 +535,29 @@ func (c *CPU) sty() uint8 {
 
 func (c *CPU) tax() uint8 {
 	c.x = c.a
-	c.setFlag(Z, c.x == 0x00)
-	c.setFlagN(N, int(c.x&0x80))
+	c.setFlag(flagZ, c.x == 0x00)
+	c.setFlagN(flagN, int(c.x&0x80))
 	return 0
 }
 
 func (c *CPU) tay() uint8 {
 	c.y = c.a
-	c.setFlag(Z, c.y == 0x00)
-	c.setFlagN(N, int(c.y&0x80))
+	c.setFlag(flagZ, c.y == 0x00)
+	c.setFlagN(flagN, int(c.y&0x80))
 	return 0
 }
 
 func (c *CPU) tsx() uint8 {
 	c.x = c.stackPointer
-	c.setFlag(Z, c.x == 0x00)
-	c.setFlagN(N, int(c.x&0x80))
+	c.setFlag(flagZ, c.x == 0x00)
+	c.setFlagN(flagN, int(c.x&0x80))
 	return 0
 }
 
 func (c *CPU) txa() uint8 {
 	c.a = c.x
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 0
 }
 
@@ -567,8 +568,8 @@ func (c *CPU) txs() uint8 {
 
 func (c *CPU) tya() uint8 {
 	c.a = c.y
-	c.setFlag(Z, c.a == 0x00)
-	c.setFlagN(N, int(c.a&0x80))
+	c.setFlag(flagZ, c.a == 0x00)
+	c.setFlagN(flagN, int(c.a&0x80))
 	return 0
 }
 
@@ -719,7 +720,7 @@ func (c *CPU) rel() uint8 {
 func (c *CPU) Step() {
 	if c.cycles == 0 { // Not clock cycle accurate
 		c.opcode = c.Read(c.pc)
-		c.setFlag(U, true)
+		c.setFlag(flagU, true)
 
 		c.pc++
 
@@ -730,7 +731,7 @@ func (c *CPU) Step() {
 
 		c.cycles += additionalCyclesAddrMode + additionalCyclesOperand
 
-		c.setFlag(U, true)
+		c.setFlag(flagU, true)
 	}
 	c.cyclesCounter++
 	c.cycles--
@@ -748,7 +749,7 @@ func (c *CPU) Reset() { // Reset signal
 	c.x = 0
 	c.y = 0
 	c.stackPointer = 0xFD
-	c.status = 0x00 | uint8(U)
+	c.status = 0x00 | uint8(flagU)
 
 	c.addressRelative = 0x0000
 	c.addressAbsolute = 0x0000
@@ -758,16 +759,16 @@ func (c *CPU) Reset() { // Reset signal
 }
 
 func (c *CPU) irq() { // Interrupt request
-	if c.getFlag(I) == 0 {
+	if c.getFlag(flagI) == 0 {
 		c.Write(0x0100+uint16(c.stackPointer), uint8((c.pc>>8)&0x00FF))
 		c.stackPointer--
 
 		c.Write(0x0100+uint16(c.stackPointer), uint8(c.pc&0x00FF))
 		c.stackPointer--
 
-		c.setFlagN(B, 0)
-		c.setFlagN(U, 1)
-		c.setFlagN(I, 1)
+		c.setFlagN(flagB, 0)
+		c.setFlagN(flagU, 1)
+		c.setFlagN(flagI, 1)
 
 		c.Write(0x0100+uint16(c.stackPointer), c.status)
 		c.stackPointer--
@@ -787,9 +788,9 @@ func (c *CPU) nmi() { // Non maskable interrupt request, nothing can't stop this
 	c.Write(0x0100+uint16(c.stackPointer), uint8(c.pc&0x00FF))
 	c.stackPointer--
 
-	c.setFlagN(B, 0)
-	c.setFlagN(U, 1)
-	c.setFlagN(I, 1)
+	c.setFlagN(flagB, 0)
+	c.setFlagN(flagU, 1)
+	c.setFlagN(flagI, 1)
 	c.Write(0x0100+uint16(c.stackPointer), c.status)
 	c.stackPointer--
 
@@ -808,14 +809,14 @@ func (c *CPU) fetch() uint8 {
 	return c.fetched
 }
 
-func (c *CPU) getFlag(f FLAGS) uint8 {
+func (c *CPU) getFlag(f cpuFlag) uint8 {
 	if (c.status & uint8(f)) > 0 {
 		return 1
 	}
 	return 0
 }
 
-func (c *CPU) setFlag(f FLAGS, v bool) {
+func (c *CPU) setFlag(f cpuFlag, v bool) {
 	if v {
 		c.status |= uint8(f)
 	} else {
@@ -824,8 +825,8 @@ func (c *CPU) setFlag(f FLAGS, v bool) {
 }
 
 // setFlagN sets a flag with an number as input
-func (c *CPU) setFlagN(f FLAGS, v int) {
-	c.setFlag(f, v != 0)
+func (c *CPU) setFlagN(flagf cpuFlag, v int) {
+	c.setFlag(flagf, v != 0)
 }
 
 // Complete indicates if the current instruction cycles have been consumed
