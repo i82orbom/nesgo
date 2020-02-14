@@ -33,7 +33,8 @@ func NewGameWindow(textureProvider gui.TextureProvider) (gui.GameWindow, error) 
 	}
 	w := &window{}
 
-	glfwWindow, err := glfw.CreateWindow(width, height, windowTitle, nil, nil)
+	// Scale up 4 times
+	glfwWindow, err := glfw.CreateWindow(width*4, height*4, windowTitle, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -59,21 +60,30 @@ func (w *window) Draw() {
 	width, height := w.getFrameBufferSizeF32()
 	width /= 256
 	height /= 240
+	var x, y float32
+	if width >= height {
+		x = height / width
+		y = 1
+	} else {
+		x = 1
+		y = width / height
+	}
+
 	// Begin draw
 
 	gl.Begin(gl.QUADS)
 
 	gl.TexCoord2f(0, 1)
-	gl.Vertex2f(-width, -height)
+	gl.Vertex2f(-x, -y)
 
 	gl.TexCoord2f(1, 1)
-	gl.Vertex2f(width, -height)
+	gl.Vertex2f(x, -y)
 
 	gl.TexCoord2f(1, 0)
-	gl.Vertex2f(width, height)
+	gl.Vertex2f(x, y)
 
 	gl.TexCoord2f(0, 0)
-	gl.Vertex2f(-width, height)
+	gl.Vertex2f(-x, y)
 
 	gl.End()
 

@@ -79,27 +79,27 @@ func (ppu *PPU) reset() {
 
 // CPURead reads a value triggered by the CPU
 func (ppu *PPU) CPURead(address uint16, readOnly bool) uint8 {
+	data := uint8(0)
+
 	if readOnly {
 		switch address {
 		case 0x0000: // Control
-			return ppu.controlRegister.Value()
+			data = ppu.controlRegister.Value()
 		case 0x0001: // Mask
-			return ppu.maskRegister.Value()
+			data = ppu.maskRegister.Value()
 		case 0x0002: // Status
-			return ppu.statusRegister.Value()
+			data = ppu.statusRegister.Value()
 		}
-		// The rest is not readable
-		return 0
+		// The rest is not readable (0x0003 - 0x0007)
+		return data
 	}
-
-	data := uint8(0)
 
 	switch address {
 	case 0x0000: // Control - not readable
 	case 0x0001: // Mask - not readable
 	case 0x0002: // Status
+		ppu.statusRegister.VerticalBlank = 1 // REMOVE: To see pattern table (has to be set to 1)
 		data = (ppu.statusRegister.Value() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
-		ppu.statusRegister.VerticalBlank = 0
 		ppu.addressLatch = 0
 	case 0x0003: // OAM Address - not readable
 	case 0x0004: // OAM Data
@@ -209,7 +209,11 @@ func (ppu *PPU) PPURead(address uint16, readOnly bool) uint8 {
 			address = 0x000C
 		}
 
-		data = ppu.tablePalette[address] & 0x3F
+		if ppu.maskRegister.Grayscale == 1 {
+			data = ppu.tablePalette[address] & 0x30
+		} else {
+			data = ppu.tablePalette[address] & 0x3F
+		}
 	}
 
 	return data
@@ -258,12 +262,7 @@ func (ppu *PPU) PPUWrite(address uint16, data uint8) {
 		} else if address == 0x001C {
 			address = 0x000C
 		}
-
-		if ppu.maskRegister.Grayscale == 1 {
-			data = ppu.tablePalette[address] & 0x30
-		} else {
-			data = ppu.tablePalette[address] & 0x3F
-		}
+		ppu.tablePalette[address] = data
 	}
 }
 
