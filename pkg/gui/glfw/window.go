@@ -109,3 +109,7 @@ func (w *window) Destroy() {
 func (w *window) ShouldClose() bool {
 	return w.Window.ShouldClose()
 }
+
+func (w *window) IsKeyPress(keyID int) bool {
+	return w.Window.GetKey(glfw.Key(keyID)) == glfw.Press
+}

@@ -15,9 +15,11 @@ type Console struct {
 	clockCounter int
 
 	// Devices connected to the Console
-	cpu  *CPU
-	ppu  *PPU
-	cart *Cartridge
+	cpu         *CPU
+	ppu         *PPU
+	cart        *Cartridge
+	controller1 *controller
+	controller2 *controller
 }
 
 // NewConsole creates an instance of a NES
@@ -26,8 +28,10 @@ func NewConsole() *Console {
 	ppu := NewPPU()
 
 	bus := &Console{
-		cpu: cpu,
-		ppu: ppu,
+		cpu:         cpu,
+		ppu:         ppu,
+		controller1: newController(),
+		controller2: newController(),
 	}
 
 	// Connect devices
@@ -89,6 +93,10 @@ func (b *Console) cpuRead(address uint16, readOnly bool) uint8 {
 		data = b.ram[address&0x07FF] // Mask for mirroring
 	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
 		data = b.ppu.CPURead(address&0x0007, readOnly)
+	} else if address == 0x4016 {
+		data = b.controller1.Data()
+	} else if address == 0x4017 {
+		data = b.controller2.Data()
 	}
 
 	// Read from other devices
@@ -105,10 +113,24 @@ func (b *Console) cpuWrite(address uint16, data uint8) {
 		b.ram[address&0x07FF] = data // Mask for mirroring
 	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
 		b.ppu.CPUWrite(address&0x0007, data)
+	} else if address == 0x4016 {
+		b.controller1.Write()
+	} else if address == 0x4017 {
+		b.controller2.Write()
 	}
 }
 
 // TextureProvider returns the texture provider, in this case the PPU
 func (b *Console) TextureProvider() gui.TextureProvider {
 	return b.ppu
+}
+
+// Controller1 returns a handle to the first NES controller
+func (b *Console) Controller1() InputController {
+	return b.controller1
+}
+
+// Controller2 returns a handle to the second NES controller
+func (b *Console) Controller2() InputController {
+	return b.controller2
 }

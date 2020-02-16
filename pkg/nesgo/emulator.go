@@ -6,12 +6,16 @@ import (
 	"github.com/go-gl/glfw/v3.1/glfw"
 	"github.com/i82orbom/nesgo/pkg/gui"
 	"github.com/i82orbom/nesgo/pkg/nes"
+	"github.com/i82orbom/nesgo/pkg/nesgo/controllers"
 )
 
 // Emulator represents a NES emulator handles the user input
 type Emulator struct {
 	console *nes.Console
-	window  gui.GameWindow
+	// Abstract to support joystick for example
+	controller1 *controllers.KeyboardController
+
+	window gui.GameWindow
 
 	// Status
 	emulationEnabled       bool
@@ -23,6 +27,7 @@ type Emulator struct {
 // NewEmulator creates a new instance of the emulator
 func NewEmulator(window gui.GameWindow, console *nes.Console) *Emulator {
 	return &Emulator{
+		controller1:            controllers.NewKeyboardController(console.Controller1()).WithDefaultMapping(),
 		window:                 window,
 		console:                console,
 		emulationEnabled:       false,
@@ -59,6 +64,9 @@ func (e *Emulator) KeyCallback(key int, isPress bool) {
 		e.currentTexture %= 3
 		e.window.SetTextureID(e.currentTexture, e.currentSelectedPalette)
 		fmt.Printf("Current texture: %v\n", e.currentTexture)
+	case glfw.KeyR:
+		fmt.Printf("Reset emulation\n")
+		e.console.Reset()
 	}
 }
 
@@ -67,9 +75,20 @@ func (e *Emulator) Step() {
 	if !e.emulationEnabled {
 		return
 	}
+	// Read input from controllers
+	e.sampleKeys()
 	e.stepFrame()
 	if e.disassemble {
 		e.console.Disassemble()
+	}
+}
+
+func (e *Emulator) sampleKeys() {
+	e.controller1.Reset()
+	for _, key := range e.controller1.GetKeyMapping() {
+		if e.window.IsKeyPress(int(key)) {
+			e.controller1.HandleKey(glfw.Key(key))
+		}
 	}
 }
 

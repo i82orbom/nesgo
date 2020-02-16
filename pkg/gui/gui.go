@@ -8,6 +8,7 @@ import (
 type GameWindow interface {
 	Draw()
 	SetKeyCallback(fn KeyCallback)
+	IsKeyPress(keyID int) bool
 	Destroy()
 	ShouldClose() bool
 	SetTextureID(id ...int)
