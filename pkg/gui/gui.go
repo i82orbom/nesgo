@@ -10,7 +10,7 @@ type GameWindow interface {
 	SetKeyCallback(fn KeyCallback)
 	Destroy()
 	ShouldClose() bool
-	SetTextureID(id int)
+	SetTextureID(id ...int)
 }
 
 // KeyCallback represents a keycallback function
@@ -18,5 +18,5 @@ type KeyCallback func(key int, isPress bool)
 
 // TextureProvider represents the interface to the outer gui world to set a texture in the gl context
 type TextureProvider interface {
-	Texture(idx int) *image.RGBA
+	Texture(idx ...int) *image.RGBA
 }

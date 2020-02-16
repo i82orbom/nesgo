@@ -14,20 +14,24 @@ type Emulator struct {
 	window  gui.GameWindow
 
 	// Status
-	emulationEnabled bool
-	disassemble      bool
-	currentTexture   int
+	emulationEnabled       bool
+	disassemble            bool
+	currentTexture         int
+	currentSelectedPalette int
 }
 
+// NewEmulator creates a new instance of the emulator
 func NewEmulator(window gui.GameWindow, console *nes.Console) *Emulator {
 	return &Emulator{
-		window:           window,
-		console:          console,
-		emulationEnabled: false,
-		currentTexture:   0,
+		window:                 window,
+		console:                console,
+		emulationEnabled:       false,
+		currentTexture:         0,
+		currentSelectedPalette: 0,
 	}
 }
 
+// KeyCallback provides the input handler to interact with the emulator
 func (e *Emulator) KeyCallback(key int, isPress bool) {
 	if !isPress {
 		return
@@ -45,14 +49,20 @@ func (e *Emulator) KeyCallback(key int, isPress bool) {
 	case glfw.KeyL:
 		e.disassemble = !e.disassemble
 		fmt.Printf("Dissasemble enabled: %v\n", e.disassemble)
+	case glfw.KeyO:
+		e.currentSelectedPalette++
+		e.currentSelectedPalette %= 7
+		e.window.SetTextureID(e.currentTexture, e.currentSelectedPalette)
+		fmt.Printf("Current palette: %v\n", e.currentSelectedPalette)
 	case glfw.KeyP:
 		e.currentTexture++
 		e.currentTexture %= 3
-		e.window.SetTextureID(e.currentTexture)
+		e.window.SetTextureID(e.currentTexture, e.currentSelectedPalette)
 		fmt.Printf("Current texture: %v\n", e.currentTexture)
 	}
 }
 
+// Step makes the console step forward a frame
 func (e *Emulator) Step() {
 	if !e.emulationEnabled {
 		return

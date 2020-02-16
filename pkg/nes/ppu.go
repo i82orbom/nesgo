@@ -273,16 +273,21 @@ func (ppu *PPU) InsertCartridge(c *Cartridge) {
 
 // Texture returns the current texture rendered by the PPU
 // This implements gui.TextureProvider
-func (ppu *PPU) Texture(idx int) *image.RGBA {
-	switch idx {
+func (ppu *PPU) Texture(idx ...int) *image.RGBA {
+	paletteID := uint8(0)
+	if len(idx) == 2 {
+		paletteID = uint8(idx[1])
+	}
+	switch idx[0] {
 	case 0:
 		return ppu.renderedTexture
 	case 1:
 		// Refresh pattern table
-		return ppu.patternTable(0, 0)
+
+		return ppu.patternTable(0, paletteID)
 	case 2:
 		// Refresh pattern table
-		return ppu.patternTable(1, 0)
+		return ppu.patternTable(1, paletteID)
 	default:
 		log.Infof("Invalid texture index selected: %v, defaulting to 0", idx)
 		return ppu.renderedTexture
