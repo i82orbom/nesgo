@@ -40,14 +40,14 @@ func (ppu *PPU) backgroundRenderingCycle() {
 			address := 0x23C0 |
 				(ppu.vramAddress.NameTableY << 11) |
 				(ppu.vramAddress.NameTableX << 10) |
-				((ppu.vramAddress.CoarseX >> 2) << 3) |
+				((ppu.vramAddress.CoarseY >> 2) << 3) |
 				(ppu.vramAddress.CoarseX >> 2)
 			ppu.bgNextTile.Attribute = ppu.PPURead(address, false)
 			if ppu.vramAddress.CoarseY&0x02 != 0 {
 				ppu.bgNextTile.Attribute >>= 4
 			}
 			if ppu.vramAddress.CoarseX&0x02 != 0 {
-				ppu.bgNextTile.Attribute >>= 4
+				ppu.bgNextTile.Attribute >>= 2
 			}
 			ppu.bgNextTile.Attribute &= 0x03
 		case 4:
@@ -130,12 +130,16 @@ func (ppu *PPU) LoadBackgroundShifters() {
 	ppu.bgShifter.patternHI = (ppu.bgShifter.patternHI & 0xFF00) | uint16(ppu.bgNextTile.ValMSB)
 
 	tileAttribLSB := uint16(0x0000)
-	if ppu.bgNextTile.Attribute&0b01 != 0 || ppu.bgNextTile.Attribute&0b10 != 0 {
+	if ppu.bgNextTile.Attribute&0b01 != 0 {
 		tileAttribLSB = 0x00FF
+	}
+	tileAttribMSB := uint16(0x0000)
+	if ppu.bgNextTile.Attribute&0b10 != 0 {
+		tileAttribMSB = 0x00FF
 	}
 
 	ppu.bgShifter.attributeLO = (ppu.bgShifter.attributeLO & 0xFF00) | tileAttribLSB
-	ppu.bgShifter.attributeHI = (ppu.bgShifter.attributeHI & 0xFF00) | tileAttribLSB
+	ppu.bgShifter.attributeHI = (ppu.bgShifter.attributeHI & 0xFF00) | tileAttribMSB
 }
 
 // IncrementScrollX updates variables for X-scrolling
