@@ -37,6 +37,22 @@ func (r *VRAMRegister) And(val uint16) {
 	r.Set(r.Value() & val)
 }
 
+func (r *VRAMRegister) FlipNameTableX() {
+	if r.NameTableX == 0 {
+		r.NameTableX = 1
+	} else {
+		r.NameTableX = 0
+	}
+}
+
+func (r *VRAMRegister) FlipNameTableY() {
+	if r.NameTableY == 0 {
+		r.NameTableY = 1
+	} else {
+		r.NameTableY = 0
+	}
+}
+
 func (r *VRAMRegister) Copy(src *VRAMRegister) {
 	r.Unused = src.Unused
 	r.FineY = src.FineY

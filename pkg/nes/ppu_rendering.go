@@ -3,14 +3,43 @@ package nes
 import (
 	"image"
 	"image/color"
-	"math/rand"
 )
 
 // Step is in charge of rendering the output of the PPU
 func (ppu *PPU) Step() {
+	// PREPARE FOR RENDERING
+	if ppu.scanline >= -1 && ppu.scanline < 240 {
 
-	colorIdx := random()
-	ppu.renderedTexture.Set(ppu.cycle-1, ppu.scanline, ppu.colorPalette[colorIdx])
+		if ppu.scanline == 0 && ppu.cycle == 0 {
+			ppu.cycle = 1
+		}
+
+		// RESET VARIABLES TO START THE RENDERING
+		if ppu.scanline == -1 && ppu.cycle == 1 {
+			ppu.statusRegister.VerticalBlank = 0
+		}
+
+		// BackgroundRenderingCycle gets&updates the variables to render the next background tile
+		ppu.backgroundRenderingCycle()
+
+		// TODO: Sprites
+	}
+
+	if ppu.scanline >= 241 && ppu.scanline < 261 {
+		if ppu.scanline == 241 && ppu.cycle == 1 {
+			ppu.statusRegister.VerticalBlank = 1
+			if ppu.controlRegister.EnableNMI != 0 {
+				ppu.nmiSignaled = true
+			}
+		}
+	}
+
+	// Render background pixel & palette
+	bgPixel, bgPalette := ppu.renderBackgroundPixel()
+
+	// Draw it!
+	color := ppu.colorFromPalette(bgPalette, bgPixel)
+	ppu.renderedTexture.SetRGBA(int(ppu.cycle-1), int(ppu.scanline), *color)
 
 	ppu.cycle++
 	if ppu.cycle >= 341 {
@@ -58,6 +87,7 @@ func (ppu *PPU) colorFromPalette(paletteID uint8, pixel uint8) *color.RGBA {
 	return &ppu.colorPalette[idx&0x3F]
 }
 
-func random() int32 {
-	return rand.Int31n(0x3F)
+// isRendering returns true if background and sprites should be rendered
+func (ppu *PPU) isRendering() bool {
+	return ppu.maskRegister.RenderBackground != 0 || ppu.maskRegister.RenderSprites != 0
 }

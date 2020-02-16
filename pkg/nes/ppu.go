@@ -17,6 +17,8 @@ const (
 type PPU struct {
 	cart *Cartridge
 
+	nmiSignaled bool
+
 	// Rendering flags
 	cycle         int
 	scanline      int
@@ -32,6 +34,10 @@ type PPU struct {
 	fineX         uint8
 	vramAddress   *register.VRAMRegister
 	tramAddress   *register.VRAMRegister
+
+	// Background variables
+	bgShifter  backgroundShifters
+	bgNextTile backgroundNextTileInfo
 
 	renderedTexture            *image.RGBA
 	spritePatternTableTextures [2]*image.RGBA
@@ -98,8 +104,8 @@ func (ppu *PPU) CPURead(address uint16, readOnly bool) uint8 {
 	case 0x0000: // Control - not readable
 	case 0x0001: // Mask - not readable
 	case 0x0002: // Status
-		ppu.statusRegister.VerticalBlank = 1 // REMOVE: To see pattern table (has to be set to 1)
 		data = (ppu.statusRegister.Value() & 0xE0) | (ppu.ppuDataBuffer & 0x1F)
+		ppu.statusRegister.VerticalBlank = 0
 		ppu.addressLatch = 0
 	case 0x0003: // OAM Address - not readable
 	case 0x0004: // OAM Data

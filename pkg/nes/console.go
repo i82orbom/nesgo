@@ -54,6 +54,12 @@ func (b *Console) Step() {
 	if (b.clockCounter % 3) == 0 {
 		b.cpu.Step()
 	}
+
+	// Trigger a NMI if the PPU requests it
+	if b.ppu.nmiSignaled {
+		b.ppu.nmiSignaled = false
+		b.cpu.nmi()
+	}
 }
 
 // StepFrame steps the console enough to generate one frame
