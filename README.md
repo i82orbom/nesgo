@@ -55,6 +55,9 @@ Currently the keys are statically mapped, dynamic mapping through a configuratio
 - [ ] - Battery support
 - [ ] - More mappers... (contributions are appreciated) 
 
+### Notes:
+
+- ##### The code is set up as simple as possible, depicting all steps in emulation, specially when rendering the image in the PPU, optimisations are ommited intentionally
 
 ### References:
 

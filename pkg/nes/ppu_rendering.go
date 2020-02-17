@@ -22,7 +22,8 @@ func (ppu *PPU) Step() {
 		// BackgroundRenderingCycle gets&updates the variables to render the next background tile
 		ppu.backgroundRenderingCycle()
 
-		// TODO: Sprites
+		// Sprite rendering cycle
+		ppu.foregroundRenderingCycle()
 	}
 
 	if ppu.scanline >= 241 && ppu.scanline < 261 {
@@ -35,10 +36,10 @@ func (ppu *PPU) Step() {
 	}
 
 	// Render background pixel & palette
-	bgPixel, bgPalette := ppu.renderBackgroundPixel()
+	pixel, palette := ppu.renderPixel()
 
 	// Draw it!
-	color := ppu.colorFromPalette(bgPalette, bgPixel)
+	color := ppu.colorFromPalette(palette, pixel)
 	ppu.renderedTexture.SetRGBA(int(ppu.cycle-1), int(ppu.scanline), *color)
 
 	ppu.cycle++
@@ -50,6 +51,49 @@ func (ppu *PPU) Step() {
 			ppu.frameComplete = true
 		}
 	}
+}
+
+func (ppu *PPU) renderPixel() (uint8, uint8) {
+	bgPixel, bgPalette := ppu.renderBackgroundPixel()
+	fgPixel, fgPalette, fgPriority := ppu.renderForegroundPixel()
+
+	// Combine output
+	pixel := uint8(0)
+	palette := uint8(0)
+
+	if bgPixel == 0 && fgPixel == 0 {
+		// 0 - nothing
+	} else if bgPixel == 0 && fgPixel > 0 { // Foreground
+		pixel = fgPixel
+		palette = fgPalette
+	} else if bgPixel > 0 && fgPixel == 0 { // Background
+		pixel = bgPixel
+		palette = bgPalette
+	} else if bgPixel > 0 && fgPixel > 0 {
+		// Priority decides
+		if fgPriority {
+			pixel = fgPixel
+			palette = fgPalette
+		} else {
+			pixel = bgPixel
+			palette = bgPalette
+		}
+
+		if ppu.spriteRenderInfo.spriteZeroHitPossible && ppu.spriteRenderInfo.spriteZeroRendered {
+			if ppu.isRendering() {
+				if !(ppu.maskRegister.RenderBackgroundLeft != 0 || ppu.maskRegister.RenderSpritesLeft != 0) {
+					if ppu.cycle >= 9 && ppu.cycle < 258 {
+						ppu.statusRegister.SpriteZeroHit = 1
+					}
+				} else {
+					if ppu.cycle >= 1 && ppu.cycle < 258 {
+						ppu.statusRegister.SpriteZeroHit = 1
+					}
+				}
+			}
+		}
+	}
+	return pixel, palette
 }
 
 func (ppu *PPU) patternTable(idx uint8, paletteID uint8) *image.RGBA {

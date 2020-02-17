@@ -39,6 +39,10 @@ type PPU struct {
 	bgShifter  backgroundShifters
 	bgNextTile backgroundNextTileInfo
 
+	// Foreground variables
+	oamMemory        *oamMemory
+	spriteRenderInfo *spriteRenderInfo
+
 	renderedTexture            *image.RGBA
 	spritePatternTableTextures [2]*image.RGBA
 
@@ -81,6 +85,9 @@ func (ppu *PPU) reset() {
 	ppu.tramAddress = &register.VRAMRegister{}
 	ppu.vramAddress.Set(0x0000)
 	ppu.tramAddress.Set(0x0000)
+
+	ppu.oamMemory = &oamMemory{}
+	ppu.spriteRenderInfo = newSpriteRenderInfo()
 }
 
 // CPURead reads a value triggered by the CPU
