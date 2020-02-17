@@ -20,6 +20,13 @@ type Console struct {
 	cart        *Cartridge
 	controller1 *controller
 	controller2 *controller
+
+	// DMA control variables
+	dmaDataBuffer uint8
+	dmaTransfer   bool
+	dmaSync       bool
+	dmaPage       uint8
+	dmaAddress    uint8
 }
 
 // NewConsole creates an instance of a NES
@@ -32,6 +39,12 @@ func NewConsole() *Console {
 		ppu:         ppu,
 		controller1: newController(),
 		controller2: newController(),
+
+		dmaDataBuffer: 0x00,
+		dmaPage:       0x00,
+		dmaSync:       true,
+		dmaTransfer:   false,
+		dmaAddress:    0x00,
 	}
 
 	// Connect devices
@@ -42,6 +55,11 @@ func NewConsole() *Console {
 // Reset resets the console
 func (b *Console) Reset() {
 	b.cpu.reset()
+	b.clockCounter = 0
+	b.dmaDataBuffer = 0x0
+	b.dmaPage = 0x0
+	b.dmaTransfer = false
+	b.dmaSync = true
 	b.ppu.reset()
 }
 
@@ -56,7 +74,29 @@ func (b *Console) Step() {
 	b.ppu.Step()
 
 	if (b.clockCounter % 3) == 0 {
-		b.cpu.Step()
+		if b.dmaTransfer {
+			if b.dmaSync { // Synchronize for the correct clock cycle to init the DMA (odd clock cycle)
+				if b.clockCounter%2 == 1 {
+					b.dmaSync = false
+					// Clean current oam data
+					b.dmaAddress = 0
+				}
+			} else {
+				if b.clockCounter%2 == 0 { // DMA Read
+					addressToRead := uint16(b.dmaPage)<<8 | uint16(b.dmaAddress)
+					b.dmaDataBuffer = b.cpuRead(addressToRead, false)
+				} else { // DMA Write
+					b.ppu.oamMemory[b.dmaAddress] = b.dmaDataBuffer
+					b.dmaAddress++
+					if b.dmaAddress == 0x00 { // Address overflow, EO-Transfer
+						b.dmaTransfer = false
+						b.dmaSync = true
+					}
+				}
+			}
+		} else {
+			b.cpu.Step()
+		}
 	}
 
 	// Trigger a NMI if the PPU requests it
@@ -64,6 +104,7 @@ func (b *Console) Step() {
 		b.ppu.nmiSignaled = false
 		b.cpu.nmi()
 	}
+	b.clockCounter++
 }
 
 // StepFrame steps the console enough to generate one frame
@@ -113,6 +154,9 @@ func (b *Console) cpuWrite(address uint16, data uint8) {
 		b.ram[address&0x07FF] = data // Mask for mirroring
 	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
 		b.ppu.CPUWrite(address&0x0007, data)
+	} else if address == 0x4014 { // DMA transfer
+		b.dmaPage = data
+		b.dmaTransfer = true
 	} else if address == 0x4016 {
 		b.controller1.Write()
 	} else if address == 0x4017 {

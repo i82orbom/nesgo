@@ -117,10 +117,14 @@ func (ppu *PPU) renderBackgroundPixel() (uint8, uint8) {
 	return backgroundPixel, backgroundPalette
 }
 
-// UpdateShifters shifts one position the background shifters
+// UpdateShifters shifts one position the background shifters and updates the sprite shifters also
 func (ppu *PPU) UpdateShifters() {
 	if ppu.maskRegister.RenderBackground != 0 {
 		ppu.bgShifter.shift()
+	}
+
+	if ppu.isRenderingSprites() && ppu.cycle >= 1 && ppu.cycle < 258 {
+		ppu.spriteRenderInfo.updateShifters()
 	}
 }
 

@@ -40,7 +40,8 @@ type PPU struct {
 	bgNextTile backgroundNextTileInfo
 
 	// Foreground variables
-	oamMemory        *oamMemory
+	oamMemory        [256]uint8
+	oamAddress       uint8
 	spriteRenderInfo *spriteRenderInfo
 
 	renderedTexture            *image.RGBA
@@ -86,7 +87,8 @@ func (ppu *PPU) reset() {
 	ppu.vramAddress.Set(0x0000)
 	ppu.tramAddress.Set(0x0000)
 
-	ppu.oamMemory = &oamMemory{}
+	ppu.oamMemory = [256]uint8{}
+	ppu.oamAddress = 0x00
 	ppu.spriteRenderInfo = newSpriteRenderInfo()
 }
 
@@ -116,6 +118,7 @@ func (ppu *PPU) CPURead(address uint16, readOnly bool) uint8 {
 		ppu.addressLatch = 0
 	case 0x0003: // OAM Address - not readable
 	case 0x0004: // OAM Data
+		data = ppu.oamMemory[ppu.oamAddress]
 	case 0x0005: // Scroll
 	case 0x0006: // PPU Address - not readable
 	case 0x0007: // PPU Data
@@ -147,7 +150,9 @@ func (ppu *PPU) CPUWrite(address uint16, data uint8) {
 		ppu.maskRegister.Set(data)
 	case 0x0002: // Status - not writable
 	case 0x0003: // OAM Address
+		ppu.oamAddress = data
 	case 0x0004: // OAM Data
+		ppu.oamMemory[ppu.oamAddress] = data
 	case 0x0005: // Scroll
 		if ppu.addressLatch == 0 {
 			ppu.fineX = data & 0x07

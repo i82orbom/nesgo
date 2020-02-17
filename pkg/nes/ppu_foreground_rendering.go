@@ -1,15 +1,12 @@
 package nes
 
-import "math/bits"
+import (
+	"math/bits"
+)
 
 const (
 	maxSpriteCount = 8
 )
-
-type oamMemory struct {
-	address uint8 // Used when DMA (not used anymore later)
-	data    [256]uint8
-}
 
 type spriteRenderInfo struct {
 	spriteZeroRendered    bool
@@ -19,16 +16,6 @@ type spriteRenderInfo struct {
 	spriteScanline   [maxSpriteCount]*oamMemoryEntry
 	shifterPatternLO [maxSpriteCount]uint8
 	shifterPatternHI [maxSpriteCount]uint8
-}
-
-// Copies the OAM data from the specified offset (not safe)
-func (sr *spriteRenderInfo) copySpriteDataFromOAM(oam *oamMemory, offset int) {
-	sr.spriteScanline[sr.spriteCount].y = oam.data[offset]
-	sr.spriteScanline[sr.spriteCount].id = oam.data[offset+1]
-	sr.spriteScanline[sr.spriteCount].attribute = oam.data[offset+2]
-	sr.spriteScanline[sr.spriteCount].x = oam.data[offset+3]
-
-	sr.spriteCount++
 }
 
 func newSpriteRenderInfo() *spriteRenderInfo {
@@ -50,11 +37,37 @@ func newSpriteRenderInfo() *spriteRenderInfo {
 func (sr *spriteRenderInfo) reset() {
 	for i := 0; i < maxSpriteCount; i++ {
 		sr.spriteScanline[i].reset()
-		sr.shifterPatternLO[i] = 0
-		sr.shifterPatternHI[i] = 0
 	}
 	sr.spriteZeroHitPossible = false
 	sr.spriteCount = 0
+}
+
+func (sr *spriteRenderInfo) resetShifters() {
+	for i := 0; i < maxSpriteCount; i++ {
+		sr.shifterPatternLO[i] = 0
+		sr.shifterPatternHI[i] = 0
+	}
+}
+
+// Copies the OAM data from the specified offset (not safe)
+func (sr *spriteRenderInfo) copySpriteDataFromOAM(oam *[256]uint8, offset int) {
+	sr.spriteScanline[sr.spriteCount].y = oam[offset]
+	sr.spriteScanline[sr.spriteCount].id = oam[offset+1]
+	sr.spriteScanline[sr.spriteCount].attribute = oam[offset+2]
+	sr.spriteScanline[sr.spriteCount].x = oam[offset+3]
+
+	sr.spriteCount++
+}
+
+func (sr *spriteRenderInfo) updateShifters() {
+	for i := uint8(0); i < sr.spriteCount; i++ {
+		if sr.spriteScanline[i].x > 0 {
+			sr.spriteScanline[i].x--
+		} else {
+			sr.shifterPatternLO[i] <<= 1
+			sr.shifterPatternHI[i] <<= 1
+		}
+	}
 }
 
 type oamMemoryEntry struct {
@@ -89,12 +102,13 @@ func (ppu *PPU) calculateSpritePatternAddressLO(currentSprite *oamMemoryEntry) u
 	spriteAttribute := uint16(currentSprite.attribute)
 	currentScanline := uint16(ppu.scanline)
 
-	isSpriteFlippedVertically := spriteAttribute&0x80 == 0
+	// The sprite is not flipped vertically
+	regularSpriteOrientation := spriteAttribute&0x80 == 0
 
 	// 8x8 sprite mode - the control register determines the pattern table
 	if ppu.controlRegister.SpriteSize == 0 {
 
-		if !isSpriteFlippedVertically {
+		if regularSpriteOrientation {
 			// Sprite is not flipped vertically
 			spritePatternAddressLO =
 				(uint16(ppu.controlRegister.PatternSprite) << 12) |
@@ -110,7 +124,7 @@ func (ppu *PPU) calculateSpritePatternAddressLO(currentSprite *oamMemoryEntry) u
 
 	} else {
 		// 8x16 sprite mode - The sprite attribute determines the pattern table
-		if !isSpriteFlippedVertically {
+		if regularSpriteOrientation {
 			if currentScanline-spriteY < 8 {
 				// Top half tile
 				spritePatternAddressLO =
@@ -150,8 +164,8 @@ func (ppu *PPU) foregroundRenderingCycle() {
 		ppu.spriteRenderInfo.reset()
 
 		currentOAMEntry := 0
-		for currentOAMEntry < 256 && ppu.spriteRenderInfo.spriteCount < maxSpriteCount {
-			diff := int(ppu.scanline) - int(ppu.oamMemory.data[currentOAMEntry]) // Y
+		for currentOAMEntry < 256 && ppu.spriteRenderInfo.spriteCount < maxSpriteCount+1 {
+			diff := int(ppu.scanline) - int(ppu.oamMemory[currentOAMEntry]) // Y value
 			compareWith := 8
 			if ppu.controlRegister.SpriteSize != 0 { // If the sprite mode is 8x16
 				compareWith = 16
@@ -162,7 +176,7 @@ func (ppu *PPU) foregroundRenderingCycle() {
 					if currentOAMEntry == 0 {
 						ppu.spriteRenderInfo.spriteZeroHitPossible = true
 					}
-					ppu.spriteRenderInfo.copySpriteDataFromOAM(ppu.oamMemory, currentOAMEntry)
+					ppu.spriteRenderInfo.copySpriteDataFromOAM(&ppu.oamMemory, currentOAMEntry)
 				}
 			}
 			currentOAMEntry += 4 // Every OAM entry is 4 bytes

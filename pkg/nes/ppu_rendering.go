@@ -17,6 +17,10 @@ func (ppu *PPU) Step() {
 		// RESET VARIABLES TO START THE RENDERING
 		if ppu.scanline == -1 && ppu.cycle == 1 {
 			ppu.statusRegister.VerticalBlank = 0
+			ppu.statusRegister.SpriteOverflow = 0
+			ppu.statusRegister.SpriteZeroHit = 0
+
+			ppu.spriteRenderInfo.resetShifters()
 		}
 
 		// BackgroundRenderingCycle gets&updates the variables to render the next background tile

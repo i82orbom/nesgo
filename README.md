@@ -47,7 +47,7 @@ Currently the keys are statically mapped, dynamic mapping through a configuratio
 - [X] - GUI framework: glfw/gl
 - [X] - Basic controller support
 - [X] - PPU background rendering
-- [ ] - PPU foreground rendering (sprites)
+- [X] - PPU foreground rendering (sprites)
 - [ ] - APU (audio processing unit)
 - [ ] - Multiple controller mappings
 - [ ] - Dynamic controller mapping
@@ -57,7 +57,7 @@ Currently the keys are statically mapped, dynamic mapping through a configuratio
 
 ### Notes:
 
-- ##### The code is set up as simple as possible, depicting all steps in emulation, specially when rendering the image in the PPU, optimisations are ommited intentionally
+- ##### The code is set up as simple as possible, depicting all steps in emulation, specially when rendering the image in the PPU, optimisations are omitted intentionally
 
 ### References:
 
