@@ -3,9 +3,9 @@ package nes
 import (
 	"image"
 	"image/color"
+	"log"
 
 	"github.com/i82orbom/nesgo/pkg/nes/register"
-	"github.com/labstack/gommon/log"
 )
 
 const (
@@ -307,7 +307,7 @@ func (ppu *PPU) Texture(idx ...int) *image.RGBA {
 		// Refresh pattern table
 		return ppu.patternTable(1, paletteID)
 	default:
-		log.Infof("Invalid texture index selected: %v, defaulting to 0", idx)
+		log.Printf("Invalid texture index selected: %v, defaulting to 0", idx)
 		return ppu.renderedTexture
 	}
 }

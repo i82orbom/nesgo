@@ -7,11 +7,13 @@ Another NES Emulator implemented in Golang
 MacOS
 ```
 brew install glfw
+brew install portaudio
 ```
 
 Linux/Unix Based Systems or Windows
 
 Refer to https://www.glfw.org/
+And http://www.portaudio.com/
 
 
 # Usage
@@ -48,6 +50,7 @@ Currently the keys are statically mapped, dynamic mapping through a configuratio
 - [X] - Basic controller support
 - [X] - PPU background rendering
 - [X] - PPU foreground rendering (sprites)
+- [X] - Framework for audio
 - [ ] - APU (audio processing unit)
 - [ ] - Multiple controller mappings
 - [ ] - Dynamic controller mapping

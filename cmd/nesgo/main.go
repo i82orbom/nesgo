@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/i82orbom/nesgo/pkg/audio/portaudio"
 	"github.com/i82orbom/nesgo/pkg/gui/glfw"
 	"github.com/i82orbom/nesgo/pkg/nes"
 	"github.com/i82orbom/nesgo/pkg/nesgo"
@@ -30,8 +31,14 @@ func main() {
 
 	window, err := glfw.NewGameWindow(console.TextureProvider())
 	if err != nil {
-		log.Fatalf("Could not create gamewindow")
+		log.Fatalf("Could not create gamewindow: %s", err.Error())
 	}
+	audio, err := portaudio.NewDevice(console.AudioSource())
+	if err != nil {
+		log.Fatalf("Could not initialize audio: %s", err.Error())
+	}
+	defer audio.Close()
+
 	emulator := nesgo.NewEmulator(window, console)
 	window.SetKeyCallback(emulator.KeyCallback)
 

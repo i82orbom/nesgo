@@ -17,6 +17,7 @@ type Console struct {
 	// Devices connected to the Console
 	cpu         *CPU
 	ppu         *PPU
+	apu         *APU
 	cart        *Cartridge
 	controller1 *controller
 	controller2 *controller
@@ -33,10 +34,12 @@ type Console struct {
 func NewConsole() *Console {
 	cpu := NewCPU()
 	ppu := NewPPU()
+	apu := NewAPU()
 
 	bus := &Console{
 		cpu:         cpu,
 		ppu:         ppu,
+		apu:         apu,
 		controller1: newController(),
 		controller2: newController(),
 
@@ -46,7 +49,6 @@ func NewConsole() *Console {
 		dmaTransfer:   false,
 		dmaAddress:    0x00,
 	}
-
 	// Connect devices
 	cpu.ConnectBus(bus)
 	return bus
@@ -72,7 +74,6 @@ func (b *Console) InsertCartridge(c *Cartridge) {
 // Step steps the console a single cycle
 func (b *Console) Step() {
 	b.ppu.Step()
-
 	if (b.clockCounter % 3) == 0 {
 		if b.dmaTransfer {
 			if b.dmaSync { // Synchronize for the correct clock cycle to init the DMA (odd clock cycle)
@@ -154,6 +155,8 @@ func (b *Console) cpuWrite(address uint16, data uint8) {
 		b.ram[address&0x07FF] = data // Mask for mirroring
 	} else if address >= 0x2000 && address <= 0x3FFF { // PPU
 		b.ppu.CPUWrite(address&0x0007, data)
+	} else if (address >= 0x4000 && address <= 0x4013) || address == 0x4015 || address == 0x4017 {
+		b.apu.CPUWrite(address, data)
 	} else if address == 0x4014 { // DMA transfer
 		b.dmaPage = data
 		b.dmaTransfer = true
@@ -177,4 +180,9 @@ func (b *Console) Controller1() InputController {
 // Controller2 returns a handle to the second NES controller
 func (b *Console) Controller2() InputController {
 	return b.controller2
+}
+
+// AudioSource provides the audio source to the outside
+func (b *Console) AudioSource() *APU {
+	return b.apu
 }
