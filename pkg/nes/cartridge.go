@@ -6,23 +6,16 @@ import (
 
 	"github.com/i82orbom/nesgo/pkg/nes/mappers"
 	"github.com/i82orbom/nesgo/pkg/nes/mappers/mapper0"
+	"github.com/i82orbom/nesgo/pkg/nes/mappers/mapper1"
 )
 
-type MirroringType uint8
-
-const (
-	OneScreenLO MirroringType = iota
-	OneScreenHI
-	Vertical
-	Horizontal
-)
-
+// Cartridge represents a NES cartridge
 type Cartridge struct {
 	prgMemory []uint8
 	chrMemory []uint8
 
-	MirroringType
-	mapper mappers.Mapper
+	mirrorType mappers.MirroringType
+	mapper     mappers.Mapper
 
 	mapperID     uint8
 	prgBankCount uint8
@@ -71,6 +64,7 @@ func readHeader(rom []byte) (header, int) {
 	return h, offset
 }
 
+// NewCartridge creates a new cartridge from the specified file
 func NewCartridge(filePath string) (*Cartridge, error) {
 	rom, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -81,12 +75,15 @@ func NewCartridge(filePath string) (*Cartridge, error) {
 
 	// mapperID
 	c.mapperID = ((header.mapper2 >> 4) << 4) | (header.mapper1 >> 4)
-	fileType := 1 // Asume type 1 always for now
+	fileType := 1
+	if header.mapper2&0x0C == 0x080 {
+		fileType = 2
+	}
 
 	// mirroring type
-	c.MirroringType = Horizontal
+	c.mirrorType = mappers.Horizontal
 	if header.mapper1&0x01 != 0 {
-		c.MirroringType = Vertical
+		c.mirrorType = mappers.Vertical
 	}
 
 	if fileType == 1 {
@@ -104,13 +101,27 @@ func NewCartridge(filePath string) (*Cartridge, error) {
 		if chrMemorySize == 0 {
 			c.chrMemory = make([]uint8, 8192)
 		} else {
-			c.chrMemory = rom[offset : chrMemorySize+offset]
+			c.chrMemory = rom[offset : len(rom)-1]
 		}
+	} else if fileType == 2 { // Not tested yet
+		c.prgBankCount = uint8(uint16(header.prgRAMSize&0x07)<<8) | header.prgChunks
+		prgMemorySize := int(c.prgBankCount) * 16384
+		// Copy PRG
+		c.prgMemory = rom[offset : prgMemorySize+offset]
+
+		// Offset is now at
+		offset = prgMemorySize + offset
+
+		c.chrBankCount = uint8(uint16(header.prgRAMSize&0x38)<<8) | header.chrChunks
+		// Copy CHR
+		c.chrMemory = rom[offset : len(rom)-1]
 	}
 
 	switch c.mapperID {
 	case 0:
 		c.mapper = mapper0.NewMapper(c.prgBankCount, c.chrBankCount)
+	case 1:
+		c.mapper = mapper1.NewMapper(c.prgBankCount, c.chrBankCount)
 	default:
 		return nil, fmt.Errorf("Mapper %v not implemented", c.mapperID)
 	}
@@ -118,16 +129,29 @@ func NewCartridge(filePath string) (*Cartridge, error) {
 	return c, nil
 }
 
+// CPURead makes a PRG read using a mapper as intermediary
 func (p *Cartridge) CPURead(address uint16, data *uint8) bool {
-	if mappedAddress := p.mapper.CPUMapRead(address); mappedAddress != nil {
+	if mappedAddress, readData := p.mapper.CPUMapRead(address); mappedAddress != nil {
+		if readData != nil {
+			*data = *readData
+		}
+
+		if *mappedAddress == 0xFFFFFFFF {
+			return true
+		}
 		*data = p.prgMemory[*mappedAddress]
 		return true
 	}
 	return false
 }
 
+// CPUWrite makes a PRG write using a mapper as intermediary
 func (p *Cartridge) CPUWrite(address uint16, data uint8) bool {
 	if mappedAddress, veto := p.mapper.CPUMapWrite(address, data); mappedAddress != nil {
+		if *mappedAddress == 0xFFFFFFFF {
+			return true
+		}
+
 		if !veto {
 			p.prgMemory[*mappedAddress] = data
 			return true
@@ -136,6 +160,7 @@ func (p *Cartridge) CPUWrite(address uint16, data uint8) bool {
 	return false
 }
 
+// PPUWrite makes a CHR write using a mapper as intermediary
 func (p *Cartridge) PPUWrite(address uint16, data uint8) bool {
 	if mappedAddress := p.mapper.PPUMapWrite(address, data); mappedAddress != nil {
 		p.chrMemory[*mappedAddress] = data
@@ -143,10 +168,25 @@ func (p *Cartridge) PPUWrite(address uint16, data uint8) bool {
 	}
 	return false
 }
+
+// PPURead makes a CHR read using a mapper as intermediary
 func (p *Cartridge) PPURead(address uint16, data *uint8) bool {
 	if mappedAddress := p.mapper.PPUMapRead(address); mappedAddress != nil {
 		*data = p.chrMemory[*mappedAddress]
 		return true
 	}
 	return false
+}
+
+// MirroringType returns the current mirroring type
+func (p *Cartridge) MirroringType() mappers.MirroringType {
+	if p.mapper.MirroringType() == mappers.Hardware {
+		return p.mirrorType
+	}
+	return p.mapper.MirroringType()
+}
+
+// Reset resets the cartridge
+func (p *Cartridge) Reset() {
+	p.mapper.Reset()
 }

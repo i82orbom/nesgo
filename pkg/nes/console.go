@@ -56,6 +56,7 @@ func NewConsole() *Console {
 
 // Reset resets the console
 func (b *Console) Reset() {
+	b.cart.Reset()
 	b.cpu.reset()
 	b.clockCounter = 0
 	b.dmaDataBuffer = 0x0

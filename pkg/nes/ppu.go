@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 
+	"github.com/i82orbom/nesgo/pkg/nes/mappers"
 	"github.com/i82orbom/nesgo/pkg/nes/register"
 )
 
@@ -193,7 +194,7 @@ func (ppu *PPU) PPURead(address uint16, readOnly bool) uint8 {
 		data = ppu.tablePattern[(address&0x1000)>>12][address&0x0FFF]
 	} else if address >= 0x2000 && address <= 0x3EFF { // Nametable memory
 		address &= 0x0FFF
-		if ppu.cart.MirroringType == Vertical {
+		if ppu.cart.MirroringType() == mappers.Vertical {
 			if address >= 0x0000 && address <= 0x03FF {
 				data = ppu.tableName[0][address&0x03FF]
 			} else if address >= 0x0400 && address <= 0x07FF {
@@ -203,7 +204,7 @@ func (ppu *PPU) PPURead(address uint16, readOnly bool) uint8 {
 			} else if address >= 0x0C00 && address <= 0x0FFF {
 				data = ppu.tableName[1][address&0x03FF]
 			}
-		} else if ppu.cart.MirroringType == Horizontal {
+		} else if ppu.cart.MirroringType() == mappers.Horizontal {
 			if address >= 0x0000 && address <= 0x03FF {
 				data = ppu.tableName[0][address&0x03FF]
 			} else if address >= 0x0400 && address <= 0x07FF {
@@ -247,7 +248,7 @@ func (ppu *PPU) PPUWrite(address uint16, data uint8) {
 		ppu.tablePattern[(address&0x1000)>>12][address&0x0FFF] = data
 	} else if address >= 0x2000 && address <= 0x3EFF { // Nametable memory
 		address &= 0x0FFF
-		if ppu.cart.MirroringType == Vertical {
+		if ppu.cart.MirroringType() == mappers.Vertical {
 			if address >= 0x0000 && address <= 0x03FF {
 				ppu.tableName[0][address&0x03FF] = data
 			} else if address >= 0x0400 && address <= 0x07FF {
@@ -257,7 +258,7 @@ func (ppu *PPU) PPUWrite(address uint16, data uint8) {
 			} else if address >= 0x0C00 && address <= 0x0FFF {
 				ppu.tableName[1][address&0x03FF] = data
 			}
-		} else if ppu.cart.MirroringType == Horizontal {
+		} else if ppu.cart.MirroringType() == mappers.Horizontal {
 			if address >= 0x0000 && address <= 0x03FF {
 				ppu.tableName[0][address&0x03FF] = data
 			} else if address >= 0x0400 && address <= 0x07FF {
